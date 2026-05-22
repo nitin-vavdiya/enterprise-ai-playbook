@@ -12,12 +12,81 @@ Files in repos that the agent reads automatically. Zero infrastructure, highest 
 
 **What goes here:**
 - `SERVICES.md` — system map (see `02a-services-map-template.md`)
+- `GLOSSARY.md` — domain vocabulary (see below)
 - Per-agent instruction files at the repo root — most agents look for a conventional file (e.g. `AGENTS.md`, `CLAUDE.md`, `.cursorrules`) and load it automatically
 - `contracts/` directory — OpenAPI specs, `.proto` files, Avro / JSON Schema, MQTT topic docs
 - ADRs (Architectural Decision Records)
+- Per-feature spec files — feature intent, requirements, and testable scenarios (see below)
 
 **Cost:** zero infrastructure, just files in git.
 **Value:** highest-leverage starting point. In our experience this layer alone eliminates the bulk of "agent has no clue" problems at 15-50 service scale.
+
+#### Domain glossary
+
+Every enterprise product accumulates terminology where the internal meaning diverges from the LLM's default understanding. Left unaddressed, this causes silent errors — the agent writes correct-looking code for the wrong concept.
+
+Examples of high-collision terms:
+
+| Term | LLM default assumption | Your domain might mean |
+|------|----------------------|----------------------|
+| Platform Operator | DevOps / infra engineer | SaaS tenant / customer |
+| Workspace | IDE window | Isolated tenant environment |
+| Agent | AI assistant | Autonomous task runner in your system |
+| Consumer | Kafka consumer group | End user of the platform |
+
+**The fix:** a `GLOSSARY.md` in `platform-docs`, synced to every service repo alongside `SERVICES.md`. Agent reads it automatically via the instruction file.
+
+Recommended format:
+
+```markdown
+# Domain Glossary
+
+Terms where our meaning differs from common usage. Read this before making
+assumptions about what any noun means in this codebase.
+
+| Term | Means here | Does NOT mean |
+|------|-----------|---------------|
+| Platform Operator | SaaS tenant — a customer organisation using the platform | A DevOps engineer operating infrastructure |
+| Workspace | Isolated environment scoped to one tenant | An IDE window or local dev folder |
+| Agent | Autonomous background task runner in our system | An AI coding assistant |
+```
+
+Keep the "Does NOT mean" column — it is the part that actively corrects the LLM's prior.
+
+Maintain `GLOSSARY.md` the same way as `SERVICES.md`: edits via PR in `platform-docs`, CI syncs to all repos, local edits blocked. Add a term every time a code review reveals a misunderstanding caused by vocabulary mismatch.
+
+#### Per-feature spec files
+
+`SERVICES.md` tells the agent where a service sits in the system. It does not tell the agent what any individual feature is supposed to do. Per-feature spec files fill that gap.
+
+Recommended layout:
+
+```
+openspec/specs/
+├── checkout-cart/spec.md
+├── checkout-payment/spec.md
+└── auth-session/spec.md
+```
+
+Each spec file captures: purpose, requirements, and GIVEN-WHEN-THEN scenarios. Example:
+
+```markdown
+# Cart persistence
+
+**Purpose:** Allow users to add items to cart before checkout.
+
+**Requirements:**
+- Cart persists across sessions
+- Items removed if stock drops to zero
+
+**Scenarios:**
+GIVEN user adds item WHEN session expires THEN cart restored on next login
+GIVEN item goes out of stock WHEN user next views cart THEN item flagged, not silently removed
+```
+
+The agent loads the relevant spec before touching that feature. Reviewers review a spec delta (intent change) alongside the code diff — useful for catching "the code changed but the spec didn't" or vice versa.
+
+**Scope boundary:** spec files are intra-service only. They do not replace cross-repo context — that is still `SERVICES.md` + Layer 2/3. An agent working on `checkout-cart` needs both: `SERVICES.md` to know that `payment-service` consumes the `order.created` event, and `checkout-cart/spec.md` to know what the cart feature is actually supposed to do.
 
 Build it first.
 

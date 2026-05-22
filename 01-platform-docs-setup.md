@@ -4,7 +4,7 @@
 
 ## The model
 
-`platform-docs` is the editable source of truth. Every service repo gets a read-only synced copy of `SERVICES.md` via CI.
+`platform-docs` is the editable source of truth. Every service repo gets a read-only synced copy of `SERVICES.md` and `GLOSSARY.md` via CI.
 
 ```
                   ┌─────────────────────────┐
@@ -92,9 +92,9 @@ Less robust but zero infrastructure. Upgrade to full CI sync once the format sta
 
 These are intentionally not provided as drop-in copy-paste; the right shape depends on your CI system, branch-protection rules, and agent stack. Sketches:
 
-**1. The sync job.** A workflow in `platform-docs` that, on merge to `main`, opens a PR (or pushes directly to a protected branch) in every service repo with the updated `SERVICES.md`. Use a bot account with a scoped token. Fail loudly if any target repo is unreachable so drift is visible.
+**1. The sync job.** A workflow in `platform-docs` that, on merge to `main`, opens a PR (or pushes directly to a protected branch) in every service repo with the updated `SERVICES.md` and `GLOSSARY.md`. Use a bot account with a scoped token. Fail loudly if any target repo is unreachable so drift is visible.
 
-**2. The local-edit guard.** A CI check in every service repo that fails the build if `SERVICES.md` is modified outside of a sync commit. Detect via committer identity (the sync-bot account) or a sentinel header in the file. The failure message points contributors to `platform-docs`.
+**2. The local-edit guard.** A CI check in every service repo that fails the build if `SERVICES.md` or `GLOSSARY.md` is modified outside of a sync commit. Detect via committer identity (the sync-bot account) or a sentinel header in the file. The failure message points contributors to `platform-docs`.
 
 **3. The agent instruction file.** A short file at the repo root that tells whatever agent runs there: read `SERVICES.md` first, check the change-impact cheatsheet before touching anything cross-service, and follow the tier rules in `04-governance.md`. The exact filename depends on the agent — some look for `AGENTS.md`, some for `CLAUDE.md`, some for `.cursorrules`. Keep one canonical file and symlink or sync to the others your org uses.
 
